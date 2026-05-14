@@ -1,0 +1,78 @@
+pipeline {
+    agent any
+
+    environment {
+        IMAGE_NAME = 'movie-search-app'
+        CONTAINER_NAME = 'movie-container'
+        PORT = '3000'
+    }
+
+    stages {
+
+        stage('Clone Repository') {
+            steps {
+                git branch: 'main', url: 'YOUR_GITHUB_REPO_URL'
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                sh 'npm ci --silent'
+            }
+        }
+
+        stage('Lint') {
+            steps {
+                sh 'npm run lint || true'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh """
+                    docker build \
+                      --build-arg VITE_OMDB_API_KEY=${env.VITE_OMDB_API_KEY} \
+                      -t ${IMAGE_NAME}:${BUILD_NUMBER} \
+                      -t ${IMAGE_NAME}:latest .
+                """
+            }
+        }
+
+        stage('Stop & Remove Old Container') {
+            steps {
+                sh "docker stop ${CONTAINER_NAME} || true"
+                sh "docker rm   ${CONTAINER_NAME} || true"
+            }
+        }
+
+        stage('Run New Container') {
+            steps {
+                sh """
+                    docker run -d \
+                      -p ${PORT}:3000 \
+                      --name ${CONTAINER_NAME} \
+                      --restart unless-stopped \
+                      ${IMAGE_NAME}:latest
+                """
+            }
+        }
+
+        stage('Health Check') {
+            steps {
+                sh "sleep 5 && curl -f http://localhost:${PORT} || exit 1"
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "✅ Deployment successful — http://localhost:${PORT}"
+        }
+        failure {
+            echo "❌ Pipeline failed. Check logs above."
+        }
+        always {
+            sh "docker image prune -f || true"
+        }
+    }
+}
