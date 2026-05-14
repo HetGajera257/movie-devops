@@ -10,32 +10,31 @@ pipeline {
 
     stages {
 
-        stage('Clone Repository') {
-            steps {
-                git branch: 'main',
-                url: 'https://github.com/HetGajera257/movie-devops.git'
-            }
-        }
-
         stage('Install Dependencies') {
             steps {
-                sh 'npm install'
+                dir('movie') {
+                    sh 'npm install'
+                }
             }
         }
 
         stage('Build React App') {
             steps {
-                sh 'npm run build'
+                dir('movie') {
+                    sh 'npm run build'
+                }
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                sh """
-                    docker build \
-                    --build-arg VITE_OMDB_API_KEY=${VITE_OMDB_API_KEY} \
-                    -t ${IMAGE_NAME}:latest .
-                """
+                dir('movie') {
+                    sh """
+                        docker build \
+                        --build-arg VITE_OMDB_API_KEY=${VITE_OMDB_API_KEY} \
+                        -t ${IMAGE_NAME}:latest .
+                    """
+                }
             }
         }
 
@@ -70,7 +69,7 @@ pipeline {
 
         success {
             echo '✅ Deployment Successful!'
-            echo '🌐 Application URL: http://65.2.57.33:3000'
+            echo '🌐 Application URL: http://13.232.217.251:3000'
         }
 
         failure {
