@@ -1,21 +1,19 @@
-FROM node:22-alpine AS builder
-
-WORKDIR /app
-
-COPY package*.json ./
-RUN npm ci --silent
-
-COPY . .
-RUN npm run build
-
-# ── Production stage ──────────────────────────────────────────
 FROM node:22-alpine
 
 WORKDIR /app
 
-RUN npm install -g serve
+COPY package*.json ./
 
-COPY --from=builder /app/dist ./dist
+RUN npm install
+
+COPY . .
+
+ARG VITE_OMDB_API_KEY
+ENV VITE_OMDB_API_KEY=$VITE_OMDB_API_KEY
+
+RUN npm run build
+
+RUN npm install -g serve
 
 EXPOSE 3000
 
