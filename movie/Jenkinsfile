@@ -2,28 +2,30 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = 'movie-search-app'
-        CONTAINER_NAME = 'movie-container'
-        PORT = '3000'
+        IMAGE_NAME = "movie-app"
+        CONTAINER_NAME = "movie-container"
+        PORT = "3000"
+        VITE_OMDB_API_KEY = "cd8d328"
     }
 
     stages {
 
         stage('Clone Repository') {
             steps {
-                git branch: 'main', url: 'YOUR_GITHUB_REPO_URL'
+                git branch: 'main',
+                url: 'https://github.com/hetgajera/movie-devops.git'
             }
         }
 
         stage('Install Dependencies') {
             steps {
-                sh 'npm ci --silent'
+                sh 'npm install'
             }
         }
 
-        stage('Lint') {
+        stage('Build React App') {
             steps {
-                sh 'npm run lint || true'
+                sh 'npm run build'
             }
         }
 
@@ -31,48 +33,52 @@ pipeline {
             steps {
                 sh """
                     docker build \
-                      --build-arg VITE_OMDB_API_KEY=${env.VITE_OMDB_API_KEY} \
-                      -t ${IMAGE_NAME}:${BUILD_NUMBER} \
-                      -t ${IMAGE_NAME}:latest .
+                    --build-arg VITE_OMDB_API_KEY=${VITE_OMDB_API_KEY} \
+                    -t ${IMAGE_NAME}:latest .
                 """
             }
         }
 
-        stage('Stop & Remove Old Container') {
+        stage('Stop Old Container') {
             steps {
-                sh "docker stop ${CONTAINER_NAME} || true"
-                sh "docker rm   ${CONTAINER_NAME} || true"
+                sh 'docker stop ${CONTAINER_NAME} || true'
+                sh 'docker rm ${CONTAINER_NAME} || true'
             }
         }
 
-        stage('Run New Container') {
+        stage('Run Docker Container') {
             steps {
                 sh """
                     docker run -d \
-                      -p ${PORT}:3000 \
-                      --name ${CONTAINER_NAME} \
-                      --restart unless-stopped \
-                      ${IMAGE_NAME}:latest
+                    -p ${PORT}:3000 \
+                    --name ${CONTAINER_NAME} \
+                    --restart unless-stopped \
+                    ${IMAGE_NAME}:latest
                 """
             }
         }
 
         stage('Health Check') {
             steps {
-                sh "sleep 5 && curl -f http://localhost:${PORT} || exit 1"
+                sh 'sleep 10'
+                sh 'curl -f http://localhost:${PORT} || exit 1'
             }
         }
     }
 
     post {
+
         success {
-            echo "✅ Deployment successful — http://localhost:${PORT}"
+            echo '✅ Deployment Successful!'
+            echo '🌐 Application URL: http://65.2.57.33:3000'
         }
+
         failure {
-            echo "❌ Pipeline failed. Check logs above."
+            echo '❌ Pipeline Failed!'
         }
+
         always {
-            sh "docker image prune -f || true"
+            sh 'docker image prune -f || true'
         }
     }
 }
